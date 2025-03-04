@@ -11,15 +11,15 @@ function infinite_current()
     y_source = 1;
 
     % Define the grid
-    dx = 0.005;
+    dx = 0.01;
     dy = dx;
-    dt = dx/5e8; %  dt<=\frac{dx}{c\sqrt{2}}
+    dt = dx/10e8; %  dt<=\frac{dx}{c\sqrt{2}}
 
     %define range
     x = 0:dx:2;
     y = 0:dy:2;
     %define time range
-    t = 0:dt:15/freq;
+    t = 0:dt:20/freq;
 
     %define permitivity and conductivity
     epsilon = ones(length(x),length(y))*epsilon0;
@@ -134,8 +134,8 @@ end
 function E_z_analytical = analytical_solution(r, t, omega, mu0, epsilon0)
     %Helmholtz solution
     k = omega * sqrt(mu0 * epsilon0);
-    E_z_analytical = (1i/4)*besselh(0, 2, k*r - omega*t); % Hankel function of second kind
-    E_z_analytical = real(E_z_analytical); % Take real part
+    E_z_analytical = (-1/4)*besselh(0, 1, -k*r )*exp(1i*omega*t); % Hankel function of second kind
+    E_z_analytical = imag(E_z_analytical); 
 end
     
 
@@ -147,7 +147,7 @@ function visualize_field(E_z, x, y, t, dt)
     hImg = imagesc(x, y, squeeze(E_z(1, :, :))', 'Parent', hAx);
     colorbar;
     colormap(winter);
-    %clim([-0.8, 0.8]); % Set color scale limits for better contrast
+    %clim([-0.2, 0.2]); % Set color scale limits for better contrast
     title('E_z at different times');
     xlabel('x');
     ylabel('y');
@@ -167,3 +167,5 @@ function visualize_field(E_z, x, y, t, dt)
         title(hAx, sprintf('E_z at t = %.2f', t(n)/dt));
     end
 end
+
+%normalize E_z, PML reflection, dx analyze, slit idx design
