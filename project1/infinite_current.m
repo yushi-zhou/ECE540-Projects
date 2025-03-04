@@ -5,27 +5,32 @@ function infinite_current()
     c = 3e8; %speed of light
     mu0 = 4*pi*1e-7; %permeability of free space
     epsilon0 = 8.85e-12; %permittivity of free space
+    freq = 1e9;
+    lambda = c/freq;
+    x_source = 1;
+    y_source = 1;
 
     % Define the grid
-    dx = 0.01;
+    dx = 0.005;
     dy = dx;
-    dt = dx/6e8; %  dt<=\frac{dx}{c\sqrt{2}}
+    dt = dx/5e8; %  dt<=\frac{dx}{c\sqrt{2}}
 
     %define range
-    x = 0:dx:200*dx;
-    y = 0:dy:200*dy;
+    x = 0:dx:2;
+    y = 0:dy:2;
     %define time range
-    t = 0:dt:1000*dt;
+    t = 0:dt:15/freq;
 
     %define permitivity and conductivity
     epsilon = ones(length(x),length(y))*epsilon0;
     sigma = zeros(length(x),length(y));
 
-    %define a sin current source, period = 100*dt, when i=160, j=100
-    omega = 2*pi/(100*dt);
+    %define a sin current source, period = 100*dt, (1.5,1)
+    omega = 2*pi*freq;
     J_z = zeros(length(t),length(x),length(y));
+
     for n=1:length(t)
-        J_z(n,160,100) = sin(omega*n*dt);
+        J_z(n,x_source/dx,y_source/dy) = sin(omega*n*dt);
     end
 
     %define perfect conductor sheet at x=x_conductor
@@ -33,8 +38,8 @@ function infinite_current()
     idx_slit_y = 0.3*length(y);
 
     %define PML 
-    PML = 40;
-    sigma_max = 0.05;
+    PML = (lambda)/dx;
+    sigma_max = 0.1;
     for i = 1:PML
         for j = 1:length(y)
             sigma(i, j) = sigma_max * ((PML - i) / PML)^3;
@@ -112,7 +117,7 @@ function infinite_current()
     for n = 1:length(t)
         for i = PML+1:length(x)-PML-1
             for j = PML+1:length(y)-PML-1
-                r = sqrt((x(i)-x(160))^2 + (y(j)-y(100))^2);
+                r = sqrt((x(i)-x(x_source/dx))^2 + (y(j)-y(y_source/dy))^2);
                 E_z_analytical(n, i, j) = analytical_solution(r, n*dt, omega, mu0, epsilon0);
             end
         end
@@ -120,14 +125,14 @@ function infinite_current()
     error = abs(E_z - E_z_analytical); %error at the beginning is large because system is not in steady yet
     
     % plot
-    visualize_field(error, x, y, t, dt);
+    visualize_field(E_z, x, y, t, dt);
  
     save('infinite_current.mat','E_z','H_x','H_y','J_z','x','y','t');
 
 end
 
 function E_z_analytical = analytical_solution(r, t, omega, mu0, epsilon0)
-    %for an infinite current line, the radiation field is given by:
+    %Helmholtz solution
     k = omega * sqrt(mu0 * epsilon0);
     E_z_analytical = (1i/4)*besselh(0, 2, k*r - omega*t); % Hankel function of second kind
     E_z_analytical = real(E_z_analytical); % Take real part
@@ -142,7 +147,7 @@ function visualize_field(E_z, x, y, t, dt)
     hImg = imagesc(x, y, squeeze(E_z(1, :, :))', 'Parent', hAx);
     colorbar;
     colormap(winter);
-    %caxis([-0.01, 0.01]); % Set color scale limits for better contrast
+    %clim([-0.8, 0.8]); % Set color scale limits for better contrast
     title('E_z at different times');
     xlabel('x');
     ylabel('y');
