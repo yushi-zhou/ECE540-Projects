@@ -128,7 +128,7 @@ function infinite_current()
     error = abs(E_z - E_z_analytical); %error at the beginning is large because system is not in steady yet
     
     % Add this after calculating 'error'
-    error_metrics = calculate_error_metrics(E_z, E_z_analytical, PML);
+    error_metrics = calculate_error_metrics(E_z, E_z_analytical, PML, dx, dy);
     
     % Analyze PML reflections
     analyze_pml_reflections(E_z, x, y, t, PML);
@@ -193,81 +193,41 @@ end
 
 %normalize E_z, PML reflection, dx analyze, slit idx design
 
-function [error_metrics] = calculate_error_metrics(E_z, E_z_analytical, PML)
+function [error_metrics] = calculate_error_metrics(E_z, E_z_analytical, PML, dx, dy)
     % Extract the non-PML region for fair comparison
     E_z_interior = E_z(:, PML+1:end-PML, PML+1:end-PML);
     E_z_analytical_interior = E_z_analytical(:, PML+1:end-PML, PML+1:end-PML);
     
-    % Define a specific point to analyze (relative to interior grid)
-    % Assuming we want point (150,150) in the global grid
-    point_x = 160 - PML;
-    point_y = 160 - PML;
+    % Define a point to analyze
+    x_observe = 0.5;
+    y_observe = 0.5;
+    point_x = round(x_observe / (dx));
+    point_y = round(y_observe / (dy));
     
     % Check if the point is within bounds of the interior grid
     interior_size = size(E_z_interior);
-    if point_x > 0 && point_x <= interior_size(2) && point_y > 0 && point_y <= interior_size(3)
-        valid_point = true;
-    else
-        valid_point = false;
-        warning('Specified point (150,150) is outside the interior region. Using center point instead.');
-        point_x = round(interior_size(2)/2);
-        point_y = round(interior_size(3)/2);
-    end
     
     % Calculate global error metrics at each time step
     for n = 1:size(E_z, 1)
-        % L1 norm (mean absolute error)
-        L1_error(n) = mean(abs(E_z_interior(n,:,:) - E_z_analytical_interior(n,:,:)), 'all');
-        
-        % L2 norm (root mean square error)
-        L2_error(n) = sqrt(mean((E_z_interior(n,:,:) - E_z_analytical_interior(n,:,:)).^2, 'all'));
-        
-        % L∞ norm (maximum absolute error)
-        Linf_error(n) = max(abs(E_z_interior(n,:,:) - E_z_analytical_interior(n,:,:)), [], 'all');
-        
-        % Calculate error at specific point (150,150)
-        point_error(n) = abs(E_z_interior(n, point_x, point_y) - E_z_analytical_interior(n, point_x, point_y));
+        % Calculate error at specific point 
+        point_error(n) = abs((E_z_interior(n, point_x, point_y) - E_z_analytical_interior(n, point_x, point_y))/E_z_analytical_interior(n, point_x, point_y));
     end
     
-    % Return all metrics
-    error_metrics.L1 = L1_error;
-    error_metrics.L2 = L2_error;
-    error_metrics.Linf = Linf_error;
+    % Return metrics
     error_metrics.point = point_error;
     
-    % Calculate steady-state errors (use last ~80% of simulation)
-    steady_idx = round(0.2*length(L1_error)):length(L1_error);
-    error_metrics.steady_L1 = mean(L1_error(steady_idx));
-    error_metrics.steady_L2 = mean(L2_error(steady_idx));
-    error_metrics.steady_Linf = mean(Linf_error(steady_idx));
+    % Calculate steady-state errors 
+    steady_idx = round(0.8*length(point_error)):length(point_error);
     error_metrics.steady_point = mean(point_error(steady_idx));
     
-    % Create two subplots: global errors and point-specific error
+    % Create figure: point-specific error
     figure;
-    
-    % First subplot: Global error metrics
-    subplot(2,1,1);
-    plot(L1_error, 'b-', 'LineWidth', 2); hold on;
-    plot(L2_error, 'r-', 'LineWidth', 2);
-    plot(Linf_error, 'g-', 'LineWidth', 2);
-    xline(steady_idx(1), 'k--', 'Steady State', 'LineWidth', 1.5);
+    plot(point_error, 'r-', 'LineWidth', 2); hold on;
+    %xline(steady_idx(1), 'k--', 'Steady State', 'LineWidth', 1.5);
     xlabel('Time Steps');
-    ylabel('Error Magnitude');
-    title('Global Error Metrics');
-    legend('L1 (Mean Abs)', 'L2 (RMSE)', 'L∞ (Maximum)');
-    grid on;
+    ylabel('Error Percentage');
+    title(sprintf('Error at Point (0.5,0.5)'));
     
-    % Second subplot: Point-specific error
-    subplot(2,1,2);
-    plot(point_error, 'c-', 'LineWidth', 2); hold on;
-    xline(steady_idx(1), 'k--', 'Steady State', 'LineWidth', 1.5);
-    xlabel('Time Steps');
-    ylabel('Error Magnitude');
-    if valid_point
-        title(sprintf('Error at Point (150,150)'));
-    else
-        title(sprintf('Error at Center Point (grid limitations)'));
-    end
     grid on;
     
     % Add text showing steady-state error values
@@ -281,20 +241,10 @@ function [error_metrics] = calculate_error_metrics(E_z, E_z_analytical, PML)
     
     plot(E_z_point, 'b-', 'LineWidth', 2); hold on;
     plot(E_z_analytical_point, 'r--', 'LineWidth', 2);
-    xline(steady_idx(1), 'k--', 'Steady State', 'LineWidth', 1.5);
+    %xline(steady_idx(1), 'k--', 'Steady State', 'LineWidth', 1.5);
     xlabel('Time Steps');
     ylabel('E_z Amplitude');
-    title('Field Value Comparison at Point (150,150)');
-    legend('FDTD Solution', 'Analytical Solution');
-    grid on;
-    
-    % Zoom in on steady-state region with another figure
-    figure;
-    plot(steady_idx, E_z_point(steady_idx), 'b-', 'LineWidth', 2); hold on;
-    plot(steady_idx, E_z_analytical_point(steady_idx), 'r--', 'LineWidth', 2);
-    xlabel('Time Steps');
-    ylabel('E_z Amplitude');
-    title('Field Values at Point (150,150) - Steady State Region');
+    title('Field Value Comparison at Point (0.5,0.5)');
     legend('FDTD Solution', 'Analytical Solution');
     grid on;
 end

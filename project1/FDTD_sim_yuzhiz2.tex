@@ -64,6 +64,7 @@ The modified time-domain Maxwell’s equations of PML in 2D space are given by:
 \frac{\partial \mathcal{H}_y}{\partial x} &= \epsilon \frac{\partial \mathcal{E}_{sx,z}}{\partial t} + \sigma_x \mathcal{E}_{sx,z} \qquad  \\
 \frac{\partial \mathcal{H}_x}{\partial y} &= -\epsilon \frac{\partial \mathcal{E}_{sy,z}}{\partial t} - \sigma_y \mathcal{E}_{sy,z} \qquad 
 \end{align}
+Where $\sigma_x=\sigma_y$ at each point and $\mathcal{E}_{sx,z}+\mathcal{E}_{sy,z}=\mathcal{E}_{z} $ .
 The equations after discretization are:
 \begin{align}
 H_x^{n+\frac{1}{2}}(i,j+\frac{1}{2}) &= \frac{1}{\beta(i,j+\frac{1}{2})}\left[\alpha(i,j+\frac{1}{2}) H_x^{n-\frac{1}{2}}(i,j+\frac{1}{2}) \right. \nonumber \\
@@ -103,8 +104,25 @@ where $H_0^{(2)}$ is the Hankel function of the second kind of order zero, and $
 \section{Results}
 \subsection{Simulation Setup}
 We study the current of an infinite line source with a frequency of 1 GHz. The computational domain is a square region with a side length 
-of 2 meters, which is around 7 wavelengths.
-The PML region is 10 cells wide, and the time step is set to 0.5 ps. 
+of 2 meters, which is around 7 wavelengths, the time step is set to $\frac{\Delta x}{1e9} $ which is larger than $\frac{\Delta x}{\sqrt{2}c}$ to
+ensure numerical stability.
+The PML region is 1 wavelength wide, and the PML conductivity profile follows a polynomial distribution. 
+The maximum PML conductivity $\sigma_{\max}$ is calculated as:
+
+\begin{equation}
+\sigma_{\max} = -\frac{\log(R_0) \cdot (m+1)}{2 \cdot 377 \cdot L}
+\end{equation}
+
+where $R_0 = 0.001$ is the target reflection coefficient, $377~\Omega$ is the impedance of free space, 
+and L is the thickness of the perfectly matched layer.
+
+For grid points in the PML region, the conductivity follows:
+
+\begin{equation}
+\sigma(d) = \sigma_{max} \left(\frac{d}{L}\right)^m
+\end{equation}
+
+where d is the distance from the boundary of PML. At corners of the computational domain, the conductivity is set to the maximum value between the x and y direction conductivities with a polynomial grading to ensure smooth transitions and minimize corner reflections.
 \subsection{Convergence Study}
 The convergence behavior of the proposed FDTD-PML implementation is analyzed by observing the error metrics over time. As shown in Fig. 2, the error metrics demonstrate steady-state convergence after 2 periods, indicating the stability and accuracy of the method.
 
