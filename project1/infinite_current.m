@@ -30,7 +30,7 @@ function infinite_current()
     J_z = zeros(length(t),length(x),length(y));
 
     for n=1:length(t)
-        J_z(n,x_source/dx,y_source/dy) = sin(omega*n*dt);
+        J_z(n,round(x_source/dx),round(y_source/dy)) = sin(omega*n*dt)/(dx*dy);
     end
 
     %define perfect conductor sheet at x=x_conductor
@@ -38,12 +38,12 @@ function infinite_current()
     idx_slit_y = 0.3*length(y);
 
     %define PML 
-    PML = (lambda)/dx;
-    sigma_max = -log(0.001)*6/(2*377*PML*dx);
+    PML = round((lambda)/dx);
+    sigma_max = -log(0.001)*4/(2*377*PML*dx);
     for i = 1:PML
         for j = 1:length(y)
-            sigma(i, j) = sigma_max * ((PML - i) / PML)^5;
-            sigma(length(x) - i + 1, j) = sigma_max * ((PML - i) / PML)^5;
+            sigma(i, j) = sigma_max * ((PML - i) / PML)^3;
+            sigma(length(x) - i + 1, j) = sigma_max * ((PML - i) / PML)^3;
         end
     end
     for i = 1:length(x)
@@ -121,7 +121,7 @@ function infinite_current()
         for i = PML+1:length(x)-PML-1
             for j = PML+1:length(y)-PML-1
                 r = sqrt((x(i)-x(x_source/dx))^2 + (y(j)-y(y_source/dy))^2);
-                E_z_analytical(n, i, j) = analytical_solution(r, n*dt, omega, mu0, epsilon0);
+                E_z_analytical(n, i, j) = analytical_solution(r, n*dt, omega, mu0, epsilon0, dx, dy);
             end
         end
     end
@@ -140,10 +140,10 @@ function infinite_current()
 
 end
 
-function E_z_analytical = analytical_solution(r, t, omega, mu0, epsilon0)
+function E_z_analytical = analytical_solution(r, t, omega, mu0, epsilon0, dx, dy)
     %Helmholtz solution
     k = omega * sqrt(mu0 * epsilon0);
-    E_z_analytical = (1/4)*besselh(0, 1, -k*r )*exp(1i*omega*t); % Hankel function of second kind
+    E_z_analytical = (mu0*omega/4)*besselh(0, 1, -k*r )*exp(1i*omega*t); % Hankel function
     E_z_analytical = imag(E_z_analytical); 
 end
     
@@ -156,7 +156,7 @@ function visualize_field(E_z, x, y, t, PML)
     hImg = imagesc(x, y, squeeze(E_z(1, :, :))', 'Parent', hAx);
     colorbar;
     colormap(winter);
-    clim([-0.2, 0.2]); % Set color scale limits for better contrast
+    %clim([-0.2, 0.2]); % Set color scale limits for better contrast
     title('E_z at different times');
     xlabel('x');
     ylabel('y');

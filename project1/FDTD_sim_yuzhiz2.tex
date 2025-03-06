@@ -76,13 +76,35 @@ E_z^{n+1}(i,j) &= \frac{1}{\beta(i,j)}\left[\alpha(i,j) E_z^n(i,j) \right. \nonu
 \end{align}
 
 \subsection{Analytical Solution}
-The time-harmonic field from an infinite current line is derived using Hankel functions:
+From Maxwell's equations, we can derive the wave equation for a time-harmonic infinite line current source. For a z-directed current line with $J_z = \delta(x)\delta(y)e^{i\omega t}$, the resulting wave equation is:
 
 \begin{equation}
-E_z^{\text{ana}}(r,t) = \text{Im}\left[\frac{1}{4}H_0^{(2)}(kr)e^{-j\omega t}\right],\quad k = \omega\sqrt{\mu_0\epsilon_0}
+\nabla^2 E_z + k^2 E_z = i\omega\mu_0\delta(x)\delta(y)e^{i\omega t}
 \end{equation}
 
+This is a Helmholtz equation with a source term. In cylindrical coordinates $(r,\phi,z)$, which naturally suit our problem geometry, this equation takes the form:
+
+\begin{equation}
+\frac{1}{r}\frac{\partial}{\partial r}\left(r\frac{\partial E_z}{\partial r}\right) + \frac{1}{r^2}\frac{\partial^2 E_z}{\partial \phi^2} + k^2 E_z = i\omega\mu_0\frac{\delta(r)}{2\pi r}e^{i\omega t}
+\end{equation}
+
+The solution to this equation can be expressed using Hankel functions, which are cylindrical analogues of complex exponentials for outward propagating waves. Using Green's function techniques and 
+considering the radiation condition that allows only outgoing waves, taking the imaginary part to obtain the physical field for our sine source yields:
+
+\begin{equation}
+E_z(r,t) = \text{Im}\left[\frac{\mu_0 \omega}{4}H_0^{(2)}(-kr)e^{i\omega t}\right]
+\end{equation}
+
+where $H_0^{(2)}$ is the Hankel function of the second kind of order zero, and $k = \omega\sqrt{\mu_0\epsilon_0}$ is the wave number. 
+
+
+
+
 \section{Results}
+\subsection{Simulation Setup}
+We study the current of an infinite line source with a frequency of 1 GHz. The computational domain is a square region with a side length 
+of 2 meters, which is around 7 wavelengths.
+The PML region is 10 cells wide, and the time step is set to 0.5 ps. 
 \subsection{Convergence Study}
 The convergence behavior of the proposed FDTD-PML implementation is analyzed by observing the error metrics over time. As shown in Fig. 2, the error metrics demonstrate steady-state convergence after 2 periods, indicating the stability and accuracy of the method.
 
@@ -129,7 +151,7 @@ The proposed modifications to standard FDTD-PML implementations demonstrate sign
 
 Future work will extend this approach to 3D geometries and nonlinear media.
 
-\section*{References}
+
 \bibliographystyle{IEEEtran}
 \begin{thebibliography}{9}
 \bibitem{taflove2005computational}
