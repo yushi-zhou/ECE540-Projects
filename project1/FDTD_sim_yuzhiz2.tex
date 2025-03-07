@@ -1,5 +1,5 @@
 \documentclass[journal]{IEEEtran}
-\usepackage{amsmath,graphicx,url}
+\usepackage{amsmath,graphicx,url,subfig}
 \hyphenation{op-tical net-works semi-conduc-tor}
 
 \begin{document}
@@ -93,10 +93,10 @@ The solution to this equation can be expressed using Hankel functions, which are
 considering the radiation condition that allows only outgoing waves, taking the imaginary part to obtain the physical field for our sine source yields:
 
 \begin{equation}
-E_z(r,t) = \text{Im}\left[\frac{\mu_0 \omega}{4}H_0^{(2)}(-kr)e^{i\omega t}\right]
+E_z(r,t) = \text{Im}\left[\frac{\mu_0 \omega}{4}H_0^{(1)}(-kr)e^{i\omega t}\right]
 \end{equation}
 
-where $H_0^{(2)}$ is the Hankel function of the second kind of order zero, and $k = \omega\sqrt{\mu_0\epsilon_0}$ is the wave number. 
+where $H_0^{(1)}$ is the Hankel function of the first kind of order zero, and $k = \omega\sqrt{\mu_0\epsilon_0}$ is the wave number. 
 
 
 
@@ -123,13 +123,47 @@ For grid points in the PML region, the conductivity follows:
 \end{equation}
 
 where d is the distance from the boundary of PML. At corners of the computational domain, the conductivity is set to the maximum value between the x and y direction conductivities with a polynomial grading to ensure smooth transitions and minimize corner reflections.
-\subsection{Convergence Study}
-The convergence behavior of the proposed FDTD-PML implementation is analyzed by observing the error metrics over time. As shown in Fig. 2, the error metrics demonstrate steady-state convergence after 2 periods, indicating the stability and accuracy of the method.
 
+To maintain physical consistency across different grid resolutions, the current source must be scaled by the cell area. This ensures that the total current remains constant regardless of discretization. For a point source in a 2D grid, the appropriate scaling is given by:
+
+\begin{equation}
+J_z(n, i_s, j_s) = \frac{I_0 \sin(\omega n \Delta t)}{\Delta x \Delta y}
+\end{equation}
+
+where $(i_s, j_s)$ corresponds to the source location, $I_0$ is the amplitude of the current, and $\Delta x \Delta y$ represents the cell area. Without this scaling, finer discretizations would effectively reduce the total current injected into the system, resulting in 
+artificially diminished field magnitudes proportional to the grid refinement ratio.
+\subsection{Convergence Study}
+To study the convergence of the FDTD simulation, we first compare a fine grid simulation result with the analytical solution, where $\Delta x = \Delta y = 0.005m$
+, the position at (0.5m, 0.5m) is chosen for comparison. Fig. 1a shows the $E_z$ from FDTD and analytical solution with respect to time, and Fig. 1b shows 
+the error. After the system is stable, the error is around 0.7\% of the magnitude of the field, which is acceptable for most applications.
 \begin{figure}[htbp]
-\centering
-%\includegraphics[width=0.45\textwidth]{error_evolution.pdf}
-\caption{Error metrics evolution showing steady-state convergence after 2 periods}
+    \centering
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/1a.png}
+    }
+    \hfill
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/1b.png}
+    }
+    \caption{\small\textit{Comparison of FDTD and analytical solutions where $\Delta x = 0.005m$: (a) $E_z$ field values over time at (0.5m, 0.5m), (b) Error between FDTD and analytical solutions}}
+    \label{fig:comparison}
+\end{figure}
+
+To reduce the computational cost, we in crease the grid size to $\Delta x = \Delta y = 0.01m$, and the error is around 1.5\% of the magnitude of the field, Fig. 2a,
+which is still acceptable, and the simulation could be done within 30s on a single core CPU. When the grid size is further increased to 
+$\Delta x = \Delta y = 0.02m$, the error is around 3\% of the magnitude of the field, Fig. 2b, so we stick to the grid size of $\Delta x = \Delta y = 0.01m$ for 
+the following simulations.
+\begin{figure}[htbp]
+    \centering
+    \subfloat[] {
+        \includegraphics[width=0.23\textwidth]{figure/2a.png}
+    }
+    \hfill
+    \subfloat[] {
+        \includegraphics[width=0.23\textwidth]{figure/2b.png}
+    }
+    \caption{\small\textit{Comparison of FDTD and analytical solutions for different grid sizes: (a) $\Delta x = 0.01m$, (b) $\Delta x = 0.02m$}}
+    \label{fig:grid_comparison}
 \end{figure}
 
 \subsection{PML Effectiveness}

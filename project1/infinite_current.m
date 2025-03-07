@@ -210,7 +210,7 @@ function [error_metrics] = calculate_error_metrics(E_z, E_z_analytical, PML, dx,
     % Calculate global error metrics at each time step
     for n = 1:size(E_z, 1)
         % Calculate error at specific point 
-        point_error(n) = abs((E_z_interior(n, point_x, point_y) - E_z_analytical_interior(n, point_x, point_y))/E_z_analytical_interior(n, point_x, point_y));
+        point_error(n) = abs((E_z_interior(n, point_x, point_y) - E_z_analytical_interior(n, point_x, point_y)));
     end
     
     % Return metrics
@@ -225,14 +225,14 @@ function [error_metrics] = calculate_error_metrics(E_z, E_z_analytical, PML, dx,
     plot(point_error, 'r-', 'LineWidth', 2); hold on;
     %xline(steady_idx(1), 'k--', 'Steady State', 'LineWidth', 1.5);
     xlabel('Time Steps');
-    ylabel('Error Percentage');
+    ylabel('Error');
     title(sprintf('Error at Point (0.5,0.5)'));
     
     grid on;
     
     % Add text showing steady-state error values
     text(round(0.7*length(point_error)), max(point_error(steady_idx))*1.1, ...
-        sprintf('Steady Point Error: %.2e', error_metrics.steady_point), 'Color', 'c');
+        sprintf('Steady Point Error: %.2e', error_metrics.steady_point), 'Color', 'r');
     
     % Create separate figure for field value comparison at the point
     figure;
