@@ -39,25 +39,25 @@ function infinite_current()
 
     %define PML 
     PML = round((lambda)/dx);
-    sigma_max = -log(0.001)*4/(2*377*PML*dx);
+    sigma_max = -log(0.001)*5/(2*377*PML*dx);
     for i = 1:PML
         for j = 1:length(y)
-            sigma(i, j) = sigma_max * ((PML - i) / PML)^3;
-            sigma(length(x) - i + 1, j) = sigma_max * ((PML - i) / PML)^3;
+            sigma(i, j) = sigma_max * ((PML - i) / PML)^4;
+            sigma(length(x) - i + 1, j) = sigma_max * ((PML - i) / PML)^4;
         end
     end
     for i = 1:length(x)
         for j = 1:PML
             sigma(i, j) = sigma_max * ((PML - j) / PML)^3;
-            sigma(i, length(y) - j + 1) = sigma_max * ((PML - j) / PML)^3;
+            sigma(i, length(y) - j + 1) = sigma_max * ((PML - j) / PML)^4;
         end
     end
 
     % Define PML at the corners
     for i = 1:PML
         for j = 1:PML
-            sigma_x = sigma_max * ((PML - i + 0.5) / PML)^5;
-            sigma_y = sigma_max * ((PML - j + 0.5) / PML)^5;
+            sigma_x = sigma_max * ((PML - i + 0.5) / PML)^4;
+            sigma_y = sigma_max * ((PML - j + 0.5) / PML)^4;
             
             sigma(i, j) = max(sigma_x, sigma_y);
             sigma(i, length(y) - j + 1) = max(sigma_x, sigma_y);
@@ -128,16 +128,16 @@ function infinite_current()
     error = abs(E_z - E_z_analytical); %error at the beginning is large because system is not in steady yet
     
     % Add this after calculating 'error'
-    error_metrics = calculate_error_metrics(E_z, E_z_analytical, PML, dx, dy);
+    %error_metrics = calculate_error_metrics(E_z, E_z_analytical, PML, dx, dy);
     
-    % Analyze PML reflections
-    analyze_pml_reflections(E_z, x, y, t, PML);
     
     % plot
     visualize_field(E_z, x, y, t, PML);
  
     save('infinite_current.mat','E_z','H_x','H_y','J_z','x','y','t');
 
+    % Calculate PML reflection
+    calculate_pml_reflection(E_z, x, y, t, PML);
 end
 
 function E_z_analytical = analytical_solution(r, t, omega, mu0, epsilon0, dx, dy)
@@ -156,7 +156,7 @@ function visualize_field(E_z, x, y, t, PML)
     hImg = imagesc(x, y, squeeze(E_z(1, :, :))', 'Parent', hAx);
     colorbar;
     colormap(winter);
-    %clim([-0.2, 0.2]); % Set color scale limits for better contrast
+    clim([-1000, 1000]); % Set color scale limits for better contrast
     title('E_z at different times');
     xlabel('x');
     ylabel('y');
@@ -182,7 +182,7 @@ function visualize_field(E_z, x, y, t, PML)
     function updateImage()
         n = round(get(hSlider, 'Value'));
         set(hImg, 'CData', squeeze(E_z(n, :, :))');
-        title(hAx, sprintf('E_z at t = %.2f', t(n)));
+        title(hAx, sprintf('E_z at t = %.2e s', t(n)));
         
         % Ensure PML boundary remains visible
         hold on;
@@ -249,57 +249,44 @@ function [error_metrics] = calculate_error_metrics(E_z, E_z_analytical, PML, dx,
     grid on;
 end
 
-function analyze_pml_reflections(E_z, x, y, t, PML)
-    % Choose time indices after waves have reached the PML
-    start_idx = floor(length(t) * 0.3);
-    end_idx = floor(length(t) * 0.8);
+function calculate_pml_reflection(E_z, x, y, t, PML)
+    % Calculate reflection from PML by comparing field values near boundary
+    % Place observation points: one just before PML, one inside computational domain
+    obs_inside = PML + 10; % 10 cells inside computational domain
+    obs_near_pml = PML + 3;  % 3 cells from PML boundary
+    mid_y = round(length(y)/2);
     
-    % Define measurement lines near the PML
-    measure_dist = 5; % cells away from PML
+    % Extract time-domain signals at these points
+    signal_inside = squeeze(E_z(:, obs_inside, mid_y));
+    signal_near_pml = squeeze(E_z(:, obs_near_pml, mid_y));
     
-    % Initialize arrays to store maximum field values
-    incident_max = zeros(1, length(t));
-    reflected_max = zeros(1, length(t));
+    % Wait for steady state (skip initial transients)
+    steady_start = round(0.7*length(t));
     
-    % For each time step in our analysis window
-    for n = start_idx:end_idx
-        % Get field at current time
-        field = squeeze(E_z(n, :, :));
-        
-        % Measure incident wave (near source, before PML reflection)
-        center_x = round(length(x)/2);
-        center_y = round(length(y)/2);
-        incident_region = field(center_x-10:center_x+10, center_y-10:center_y+10);
-        incident_max(n) = max(abs(incident_region(:)));
-        
-        % Measure potential reflections (just inside the PML boundary)
-        reflection_region = field(PML+measure_dist:PML+2*measure_dist, PML+measure_dist:end-PML-measure_dist);
-        reflected_max(n) = max(abs(reflection_region(:)));
-    end
+    % Calculate reflection coefficient from ratio of amplitudes
+    % For perfect PML, waves at the boundary should pass through without reflection
+    % So the amplitude ratio should approach 1 in steady state
+    max_inside = max(abs(signal_inside(steady_start:end)));
+    max_near_pml = max(abs(signal_near_pml(steady_start:end)));
     
-    % Calculate reflection coefficient (approximate)
-    max_incident = max(incident_max);
-    max_reflected = max(reflected_max(floor(length(t)*0.6):end)); % Look at later times for reflections
-    reflection_coef = max_reflected / max_incident;
+    % Simple reflection estimate
+    reflection_coeff = abs(max_near_pml/max_inside - 1);
     
-    % Plot results
+    % Plot the time-domain signals
     figure;
-    semilogy(t, incident_max, 'b-', 'LineWidth', 2); hold on;
-    semilogy(t, reflected_max, 'r-', 'LineWidth', 2);
-    xlabel('Time');
-    ylabel('Field Magnitude (log scale)');
-    title(sprintf('PML Reflection Analysis (Coefficient ≈ %.2e)', reflection_coef));
-    legend('Incident Wave', 'Reflected Wave');
+    plot(t, signal_inside, 'b-', 'LineWidth', 2); hold on;
+    plot(t, signal_near_pml, 'r--', 'LineWidth', 2);
+    xlabel('Time (s)');
+    ylabel('E_z Amplitude');
+    title('PML Reflection Analysis');
+    legend('10 cells from PML', '3 cells from PML');
     grid on;
     
-    % Display assessment
-    if reflection_coef < 1e-2
-        disp('PML Performance: EXCELLENT (Reflection < 1%)');
-    elseif reflection_coef < 5e-2
-        disp('PML Performance: GOOD (Reflection < 5%)');
-    elseif reflection_coef < 1e-1
-        disp('PML Performance: ACCEPTABLE (Reflection < 10%)');
-    else
-        disp('PML Performance: POOR (Reflection > 10%)');
-    end
+    % Add text showing reflection coefficient
+    text(t(round(length(t)*0.7)), max(abs(signal_inside))*0.8, ...
+        sprintf('Est. Reflection: %.2e', reflection_coeff), 'FontSize', 12);
+    
+    fprintf('Estimated PML reflection coefficient: %.2e\n', reflection_coeff);
+    
 end
+
