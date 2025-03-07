@@ -34,30 +34,35 @@ function infinite_current()
     end
 
     %define perfect conductor sheet at x=x_conductor
-    idx_conductor_x = 50;
-    idx_slit_y = 0.3*length(y);
+    x_conductor = 0.5;
+    y_slit = 0.5;
+    slit_width = 0.05;
+    idx_conductor_x = round(x_conductor/dx);
+    idx_slit_y = round(y_slit/dy);
+    idx_slit_width = round(slit_width/dy);
+
 
     %define PML 
-    PML = round((lambda)/dx);
-    sigma_max = -log(0.001)*5/(2*377*PML*dx);
+    PML = round((0.5*lambda)/dx);
+    sigma_max = -log(0.001)*3/(2*377*PML*dx);
     for i = 1:PML
         for j = 1:length(y)
-            sigma(i, j) = sigma_max * ((PML - i) / PML)^4;
-            sigma(length(x) - i + 1, j) = sigma_max * ((PML - i) / PML)^4;
+            sigma(i, j) = sigma_max * ((PML - i) / PML)^2;
+            sigma(length(x) - i + 1, j) = sigma_max * ((PML - i) / PML)^2;
         end
     end
     for i = 1:length(x)
         for j = 1:PML
-            sigma(i, j) = sigma_max * ((PML - j) / PML)^3;
-            sigma(i, length(y) - j + 1) = sigma_max * ((PML - j) / PML)^4;
+            sigma(i, j) = sigma_max * ((PML - j) / PML)^2;
+            sigma(i, length(y) - j + 1) = sigma_max * ((PML - j) / PML)^2;
         end
     end
 
     % Define PML at the corners
     for i = 1:PML
         for j = 1:PML
-            sigma_x = sigma_max * ((PML - i + 0.5) / PML)^4;
-            sigma_y = sigma_max * ((PML - j + 0.5) / PML)^4;
+            sigma_x = sigma_max * ((PML - i + 0.5) / PML)^2;
+            sigma_y = sigma_max * ((PML - j + 0.5) / PML)^2;
             
             sigma(i, j) = max(sigma_x, sigma_y);
             sigma(i, length(y) - j + 1) = max(sigma_x, sigma_y);
@@ -96,15 +101,15 @@ function infinite_current()
                 if i>PML && i<length(x)-PML && j>PML && j<length(y)-PML
                     E_z(n+1,i,j) = 1./beta(i,j)*(alpha(i,j).*E_z(n,i,j) + 1/dx*(H_y(n+1,i+1,j)-H_y(n+1,i,j))-1/dy*(H_x(n+1,i,j+1)-H_x(n+1,i,j))-J_z(n+1,i,j));
 
-                    %add a conductive sheet
-                    % if i==idx_conductor_x && (j < idx_slit_y-5 || (j > idx_slit_y+5) && (j < length(y)-idx_slit_y-5) || j > length(y)-idx_slit_y+5)
-                    %     E_z(n+1,i,j) = 0;
-                    % end
+                    %add the conductive sheet
+                     % if i==idx_conductor_x && (j < idx_slit_y-idx_slit_width || (j > idx_slit_y+idx_slit_width) && (j < length(y)-idx_slit_y-idx_slit_width) || j > length(y)-idx_slit_y+idx_slit_width)
+                     %     E_z(n+1,i,j) = 0;
+                     % end
                 else
                     E_z(n+1,i,j) = 1./beta(i,j)*(alpha(i,j).*E_z(n,i,j) + 1/dx*(H_y(n+1,i+1,j)-H_y(n+1,i,j))-1/dy*(H_x(n+1,i,j+1)-H_x(n+1,i,j)));
 
-                    %add a conductive sheet
-                    % if i==idx_conductor_x && (j < idx_slit_y-5 || (j > idx_slit_y+5) && (j < length(y)-idx_slit_y-5) || j > length(y)-idx_slit_y+5)
+                    %add the conductive sheet
+                    % if i==idx_conductor_x && (j < idx_slit_y-idx_slit_width || (j > idx_slit_y+idx_slit_width) && (j < length(y)-idx_slit_y-idx_slit_width) || j > length(y)-idx_slit_y+idx_slit_width)
                     %     E_z(n+1,i,j) = 0;
                     % end
                 end
@@ -127,8 +132,7 @@ function infinite_current()
     end
     error = abs(E_z - E_z_analytical); %error at the beginning is large because system is not in steady yet
     
-    % Add this after calculating 'error'
-    %error_metrics = calculate_error_metrics(E_z, E_z_analytical, PML, dx, dy);
+    error_metrics = calculate_error_metrics(E_z, E_z_analytical, PML, dx, dy);
     
     
     % plot
@@ -156,7 +160,7 @@ function visualize_field(E_z, x, y, t, PML)
     hImg = imagesc(x, y, squeeze(E_z(1, :, :))', 'Parent', hAx);
     colorbar;
     colormap(winter);
-    clim([-1000, 1000]); % Set color scale limits for better contrast
+    clim([-800, 800]); % Set color scale limits for better contrast
     title('E_z at different times');
     xlabel('x');
     ylabel('y');
@@ -271,17 +275,7 @@ function calculate_pml_reflection(E_z, x, y, t, PML)
     
     % Simple reflection estimate
     reflection_coeff = abs(max_near_pml/max_inside - 1);
-    
-    % Plot the time-domain signals
-    figure;
-    plot(t, signal_inside, 'b-', 'LineWidth', 2); hold on;
-    plot(t, signal_near_pml, 'r--', 'LineWidth', 2);
-    xlabel('Time (s)');
-    ylabel('E_z Amplitude');
-    title('PML Reflection Analysis');
-    legend('10 cells from PML', '3 cells from PML');
-    grid on;
-    
+        
     % Add text showing reflection coefficient
     text(t(round(length(t)*0.7)), max(abs(signal_inside))*0.8, ...
         sprintf('Est. Reflection: %.2e', reflection_coeff), 'FontSize', 12);

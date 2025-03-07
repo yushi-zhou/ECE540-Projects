@@ -1,5 +1,5 @@
 \documentclass[journal]{IEEEtran}
-\usepackage{amsmath,graphicx,url,subfig}
+\usepackage{amsmath,graphicx,url,subfig,multirow}
 \hyphenation{op-tical net-works semi-conduc-tor}
 
 \begin{document}
@@ -9,15 +9,23 @@
 \maketitle
 
 \begin{abstract}
-This paper presents a finite-difference time-domain (FDTD) implementation for analyzing the radiation characteristics of an infinite harmonic current line. A modified perfectly matched layer (PML) boundary condition is proposed to address the high reflection artifacts observed in conventional implementations. The Yee grid scheme is employed to discretize Maxwell's equations, and the analytical solution derived from Hankel functions is used for validation. Key improvements include a corrected PML conductivity profile and dual electric/magnetic conductivity terms for impedance matching. Numerical results demonstrate a reduction in PML reflection coefficients from >5\% to <1\%, along with a 60\% decrease in steady-state error oscillations. The proposed method achieves a normalized root mean square error (NRMSE) of $ XXX$ in the non-PML region.
+This paper presents a finite-difference time-domain (FDTD) analysis of radiation from an infinite harmonic current line, 
+with a focus on implementing perfectly matched layer (PML) boundary conditions. The simulation is based on Yee's staggered grid algorithm, 
+which provides natural compatibility with Maxwell's equations. We validate our FDTD implementation against analytical solutions 
+derived from Hankel functions, demonstrating convergence with decreasing grid sizes. 
+A systematic study of PML parameters reveals optimal configurations, achieving reflection coefficients as low as 
+$1.53 \times 10^{-2}$ with a polynomial order of 2 and PML thickness of 0.5$\lambda$. 
+The method is further applied to analyze wave propagation through conducting sheets with single and double slots, 
+effectively demonstrating diffraction phenomena. Results confirm that the FDTD-PML approach provides 
+an accurate and efficient means of simulating unbounded electromagnetic wave problems with complex geometries.
 \end{abstract}
 
 \begin{IEEEkeywords}
 FDTD, PML, Yee grid,  Wave radiation
 \end{IEEEkeywords}
 
-\section{Introduction}%这一部分介绍基于Yee grid的FDTD的背景，以及PML的优越性。并说明本文的研究对象
-The finite-difference time-domain (FDTD) method based on Yee's spatial grid has become a fundamental approach for solving electromagnetic wave problems. 
+\section{Introduction}
+The finite-difference time-domain (FDTD) method based on Yee's spatial grid \cite{yee1966numerical} has become a fundamental approach for solving electromagnetic wave problems. 
 The Yee grid's staggered arrangement of electric and magnetic field components provides natural compatibility with Maxwell's integral equations, 
 as it preserves the divergence conditions and maintains accuracy. 
 
@@ -37,14 +45,14 @@ A infinite current line system perserves cylindrical symmetry, thus can be simpl
 And because the TM (Transverse Magnetic) Mode and TE (Transverse Electric) Mode are decoupled in 2D space, we can focus on the TM mode, 
 which only $E_z$ and $H_x$ , $H_y$ are non-zero. 
 
-In a 2D problem, the Maxwell's equations can be written as:
+In a 2D problem, Maxwell's equations can be written as:
 \begin{align}
 \frac{\partial H_x}{\partial t} &= -\frac{1}{\mu_0}\frac{\partial E_z}{\partial y} \\
 \frac{\partial H_y}{\partial t} &= \frac{1}{\mu_0}\frac{\partial E_z}{\partial x} \\
 \frac{\partial E_z}{\partial t} &= \frac{1}{\epsilon}\left(\frac{\partial H_y}{\partial x} - \frac{\partial H_x}{\partial y}\right) - \frac{1}{\epsilon} J_z
 \end{align}
 
-The Yee grid discretizes Maxwell's equations as:
+The Yee grid discretizes Maxwell's equations as \cite{jin2015theory}:
 
 \begin{align}
 H_x^{n+\frac{1}{2}}(i,j) &= H_x^{n-\frac{1}{2}}(i,j) - \frac{\Delta t}{\mu_0\Delta x}\left[E_z^n(i,j+\frac{1}{2}) - E_z^n(i,j)\right] \\
@@ -54,7 +62,7 @@ E_z^{n+1}(i,j) &= \frac{1}{\beta(i,j)}\left[\alpha(i,j) E_z^n(i,j) \right. \nonu
 &- \frac{1}{\Delta y}\left(H_x^{n+\frac{1}{2}}(i,j+\frac{1}{2}) - H_x^{n+\frac{1}{2}}(i,j)\right) \nonumber \\
 &\left. - J_z^{n+1}(i,j)\right]
 \end{align}
-where $\alpha(i,j)=\frac{\epsilon(i,j)}{\Delta t}-\frac{\sigma(i,J)}{2}$, $\beta(i,j)=\frac{\epsilon(i,j)}{\Delta t}+\frac{\sigma(i,J)}{2}$.
+where $\alpha(i,j)=\frac{\epsilon(i,j)}{\Delta t}-\frac{\sigma(i,j)}{2}$, $\beta(i,j)=\frac{\epsilon(i,j)}{\Delta t}+\frac{\sigma(i,j)}{2}$.
 
 \subsection{PML Boundary Conditions}
 The modified time-domain Maxwell’s equations of PML in 2D space are given by:
@@ -65,7 +73,7 @@ The modified time-domain Maxwell’s equations of PML in 2D space are given by:
 \frac{\partial \mathcal{H}_x}{\partial y} &= -\epsilon \frac{\partial \mathcal{E}_{sy,z}}{\partial t} - \sigma_y \mathcal{E}_{sy,z} \qquad 
 \end{align}
 Where $\sigma_x=\sigma_y$ at each point and $\mathcal{E}_{sx,z}+\mathcal{E}_{sy,z}=\mathcal{E}_{z} $ .
-The equations after discretization are:
+The equations after discretization are{\cite{jin2015theory}}:
 \begin{align}
 H_x^{n+\frac{1}{2}}(i,j+\frac{1}{2}) &= \frac{1}{\beta(i,j+\frac{1}{2})}\left[\alpha(i,j+\frac{1}{2}) H_x^{n-\frac{1}{2}}(i,j+\frac{1}{2}) \right. \nonumber \\
 &\left. - \frac{\epsilon(i,j+\frac{1}{2})}{\mu_0 \Delta y}\left(E_z^n(i,j+1) - E_z^n(i,j)\right)\right] \\
@@ -167,53 +175,119 @@ the following simulations.
 \end{figure}
 
 \subsection{PML Effectiveness}
-The effectiveness of the improved PML is evaluated by comparing the reflection coefficients of the incident and reflected waves. The improved PML achieves reflection coefficients below 1\% compared to 5.8\% in the baseline implementation, as illustrated in Fig. 3. This significant reduction in reflection demonstrates the enhanced performance of the proposed PML modifications.
+To evaluate the effectiveness of the PML boundary conditions, we calculate the reflection coefficient at 
+\begin{equation}
+R = \left| \frac{\max(|E_z|_\text{near})}{\max(|E_z|_\text{inside})} - 1 \right|
+\end{equation}
+
+where $E_z|_\text{near}$ is the electric field measured at a point near the PML boundary, and $E_z|_\text{inside}$ 
+at different observation points near the boundary. A smaller reflection coefficient indicates better PML performance. We conducted systematic tests varying both the polynomial order ($m$) and PML thickness to optimize performance, with results summarized in Table I.
+
+\begin{table}[htbp]
+\centering
+\caption{PML Reflection Coefficients for Different Parameters}
+\label{tab:pml_performance}
+\begin{tabular}{|c|c|c|}
+\hline
+\textbf{Parameter} & \textbf{Value} & \textbf{Reflection Coefficient} \\
+\hline
+\multirow{4}{*}{$m$(while L = $\lambda$)} & 2 & $2.63 \times 10^{-2}$ \\
+& 3 & $6.40 \times 10^{-2}$ \\
+& 4 & $7.83 \times 10^{-2}$ \\
+& 5 & $6.12 \times 10^{-2}$ \\
+\hline
+\multirow{3}{*}{L(while $m$=2)} & $0.2\lambda$ & $4.78 \times 10^{-2}$ \\
+& $0.5\lambda$ & $1.53 \times 10^{-2}$ \\
+& $1.0\lambda$ & $2.63 \times 10^{-2}$ \\
+& $1.5\lambda$ & $8.05 \times 10^{-2}$ \\
+\hline
+\end{tabular}
+\end{table}
+
+
+Based on these results, a better configuration was determined to be a polynomial order $m=2$ with PML thickness of $0.5\lambda$, 
+yielding the lowest reflection coefficient of $1.53 \times 10^{-2}$. This configuration was adopted for all subsequent simulations.
+Fig. 3 shows the $E_z$ field distribution after the simulation has reached steady state, with the optimized PML configuration. The PML region is highlighted 
+by the red dashed lines.
 
 \begin{figure}[htbp]
-\centering
-%\includegraphics[width=0.45\textwidth]{pml_reflection.pdf}
-\caption{PML reflection analysis showing incident/reflected wave magnitudes}
+    \centering
+    \includegraphics[width=0.35\textwidth]{figure/3.png}
+    \caption{\small\textit{Steady-state $E_z$ field distribution showing effective wave absorption by the optimized PML. The red dashed lines indicate the PML boundaries.}}
+    \label{fig:pml_effectiveness}
 \end{figure}
 
-\subsection{Single Slot Conductive Sheet}
-The performance of the FDTD-PML implementation is further validated using a single slot conductive sheet. Fig. 4(a) shows the FDTD-computed $E_z$ field at $t=5T$, while Fig. 4(b) presents the corresponding analytical solution. The error distribution, depicted in Fig. 4(c), indicates a normalized root mean square error (NRMSE) of 0.32\%.
+\subsection{Single Slot Conductive Sheet and Double Slot Conductive Sheet}
+To evaluate the FDTD-PML method in more complex scenarios, we introduced perfectly conducting sheets with apertures. 
+For perfectly conducting sheets, we enforce the boundary condition $E_z = 0$ along the sheet surfaces, 
+which follows from the requirement that the tangential electric field must vanish at the surface of a perfect electrical conductor (PEC).  
+
+First, we simulated a single-slot conductive sheet positioned at x=0.5m. The slot was centered along the y-axis with a width of 0.1m. Figure 4 shows the $E_z$ field distribution at different time steps as waves interact with the sheet.
 
 \begin{figure}[htbp]
-\centering
-%\includegraphics[width=0.45\textwidth]{field_comparison.pdf}
-\caption{(a) FDTD-computed $E_z$ field at $t=5T$, (b) Analytical solution, (c) Error distribution (NRMSE = 0.32\%)}
+    \centering
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/4a.png}
+    }
+    \hfill
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/4b.png}
+    }
+    \hfill
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/4c.png}
+    }
+    \hfill
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/4d.png}
+    }
+    \caption{\small\textit{Evolution of $E_z$ field distribution as waves interact with a single-slot conductive sheet. }}
+    \label{fig:single_slot}
 \end{figure}
 
-\subsection{Double Slot Conductive Sheet}
-The implementation is also tested with a double slot conductive sheet configuration. The results show a further reduction in error oscillations by 62% due to the phase correction in the analytical solution. This demonstrates the robustness of the proposed method in handling complex geometries.
-
+Subsequently, we implemented a double-slot configuration to examine more complex diffraction patterns. 
+The two slots, each 0.1m wide, were positioned symmetrically at y=0.5m and y=1.5m. Figure 5 shows the $E_z$ field distribution at different time steps as waves interact with the sheet.
 \begin{figure}[htbp]
-\centering
-%\includegraphics[width=0.45\textwidth]{double_slot_field_comparison.pdf}
-\caption{(a) FDTD-computed $E_z$ field for double slot at $t=5T$, (b) Analytical solution, (c) Error distribution (NRMSE = 0.25\%)}
+    \centering
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/5a.png}
+    }
+    \hfill
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/5b.png}
+    }
+    \hfill
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/5c.png}
+    }
+    \hfill
+    \subfloat[]{
+        \includegraphics[width=0.23\textwidth]{figure/5d.png}
+    }
+    \caption{\small\textit{Evolution of $E_z$ field distribution as waves interact with a double-slot conductive sheet. }}
+    \label{fig:double_slot}
 \end{figure}
 
 \section{Conclusion}
-The proposed modifications to standard FDTD-PML implementations demonstrate significant performance improvements:
-\begin{itemize}
-\item PML reflection reduced to <1\% through impedance-matched conductivity
-\item Steady-state error reduced to $8.7 \times 10^{-4}$ (L2 norm)
-\item Stable convergence achieved within 2 wave periods
-\end{itemize}
+In this paper, we presented an FDTD implementation for analyzing the radiation characteristics of an infinite harmonic current line.
+The Yee grid scheme was employed to discretize Maxwell's equations, 
 
-Future work will extend this approach to 3D geometries and nonlinear media.
 
 
 \bibliographystyle{IEEEtran}
 \begin{thebibliography}{9}
-\bibitem{taflove2005computational}
-A. Taflove and S. C. Hagness, \emph{Computational Electrodynamics: The Finite-Difference Time-Domain Method}. Artech House, 2005.
 
 \bibitem{berenger1994perfectly}
-J.-P. Berenger, "A perfectly matched layer for the absorption of electromagnetic waves," \emph{J. Comput. Phys.}, vol. 114, pp. 185-200, 1994.
+J.-P. Berenger, "A perfectly matched layer for the absorption of electromagnetic waves," \emph{J. Comput. Phys.}, vol. 114, no. 2, pp. 185-200, 1994.
 
 \bibitem{jin2011theory}
 J.-M. Jin, \emph{Theory and Computation of Electromagnetic Fields}. Wiley, 2011.
+
+\bibitem{yee1966numerical}
+K. S. Yee, "Numerical solution of initial boundary value problems involving Maxwell's equations in isotropic media," \emph{IEEE Trans. Antennas Propag.}, vol. 14, no. 3, pp. 302-307, 1966.
+
+\bibitem{jin2015theory}
+J.-M. Jin, \emph{Theory and Computation of Electromagnetic Fields}. Wiley, 2015.
 \end{thebibliography}
 
 \end{document}
